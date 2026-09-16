@@ -10,14 +10,20 @@ export default function Home() {
   const [error, setError] = useState("");
 
   async function loadReports() {
-    const res = await fetch("/api/reports", { cache: "no-store" });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || "Could not load reports.");
-    setReports(json.reports || []);
+    try {
+      const res = await fetch("/api/reports", { cache: "no-store" });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || "Failed to load reports.");
+
+      setReports(data.reports || []);
+    } catch (e) {
+      setError(e.message);
+    }
   }
 
   useEffect(() => {
-    loadReports().catch((e) => setError(e.message));
+    loadReports();
   }, []);
 
   async function downloadReport() {
@@ -28,19 +34,25 @@ export default function Home() {
     try {
       const res = await fetch("/api/download-report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reportDate: date })
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          reportDate: date
+        })
       });
 
-      const json = await res.json();
+      const data = await res.json();
 
-      if (!res.ok) throw new Error(json.error || "Download failed.");
+      if (!res.ok) {
+        throw new Error(data.error || "Report download failed.");
+      }
 
       setMessage(
-        `Downloaded ${json.report.file_name} and saved it to Supabase.`
+        `Excel downloaded successfully: ${data.report.file_name}`
       );
 
-      await loadReports();
+      loadReports();
     } catch (e) {
       setError(e.message);
     } finally {
@@ -51,9 +63,13 @@ export default function Home() {
   async function openReport(id) {
     try {
       const res = await fetch(`/api/reports/${id}`);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Could not open report.");
-      window.open(json.url, "_blank", "noopener,noreferrer");
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Could not open report.");
+      }
+
+      window.open(data.url, "_blank");
     } catch (e) {
       setError(e.message);
     }
@@ -63,17 +79,17 @@ export default function Home() {
     <main>
       <div className="card">
         <h1>APDCL RMS Report Downloader</h1>
+
         <p>
-          Select a date. The server will log into APDCL RMS, download the
-          Daily Performance Report Excel file, save it in Supabase Storage,
-          and display it below.
+          Select the Daily Performance Report date and download the Excel
+          file from APDCL RMS.
         </p>
 
         <div className="form">
           <div className="field">
-            <label htmlFor="date">Report date</label>
+            <label>Report Date</label>
+
             <input
-              id="date"
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
@@ -88,8 +104,17 @@ export default function Home() {
           </button>
         </div>
 
-        {message && <p className="success">{message}</p>}
-        {error && <p className="error">{error}</p>}
+        {message && (
+          <div className="success">
+            {message}
+          </div>
+        )}
+
+        {error && (
+          <div className="error">
+            {error}
+          </div>
+        )}
       </div>
 
       <div className="card">
@@ -104,10 +129,10 @@ export default function Home() {
                 <th>Date</th>
                 <th>File</th>
                 <th>Status</th>
-                <th>Created</th>
-                <th></th>
+                <th>Action</th>
               </tr>
             </thead>
+
             <tbody>
               {reports.map((report) => (
                 <tr key={report.id}>
@@ -115,14 +140,9 @@ export default function Home() {
                   <td>{report.file_name}</td>
                   <td>{report.status}</td>
                   <td>
-                    {new Date(report.created_at).toLocaleString()}
-                  </td>
-                  <td>
-                    {report.status === "downloaded" && (
-                      <button onClick={() => openReport(report.id)}>
-                        Open Excel
-                      </button>
-                    )}
+                    <button onClick={() => openReport(report.id)}>
+                      Open Excel
+                    </button>
                   </td>
                 </tr>
               ))}
