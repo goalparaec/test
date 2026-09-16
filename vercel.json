@@ -1,7 +1,1 @@
-{
-  "functions": {
-    "app/api/download-report/route.js": {
-      "maxDuration": 300
-    }
-  }
-}
+{}
